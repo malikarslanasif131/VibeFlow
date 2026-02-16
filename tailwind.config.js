@@ -18,6 +18,7 @@ export default {
                 'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
                 'shimmer': 'shimmer 2s linear infinite',
                 'zoom-out': 'zoomOut 5s ease-out forwards',
+                'equalizer': 'equalizer 1s ease-in-out infinite',
             },
             keyframes: {
                 fadeIn: {
@@ -39,6 +40,10 @@ export default {
                 zoomOut: {
                     '0%': { transform: 'scale(1.1)' },
                     '100%': { transform: 'scale(1)' },
+                },
+                equalizer: {
+                    '0%, 100%': { height: '4px' },
+                    '50%': { height: '12px' },
                 },
             },
         },

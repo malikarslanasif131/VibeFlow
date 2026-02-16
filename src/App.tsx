@@ -5,22 +5,43 @@ import QuoteDisplay from './components/QuoteDisplay';
 import GenerateButton from './components/GenerateButton';
 import BackgroundLayer from './components/BackgroundLayer';
 
-/**
- * Mood-to-Music Map
- * Using reliable SoundHelix public domain placeholders for the demo.
- * The user can replace these URLs with their own direct MP3 links (Pixabay, etc).
- */
-const moodMusic: Record<string, string> = {
-    happy: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',       // Upbeat
-    chill: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',       // Mellow
-    motivated: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3',  // Energetic
-    sad: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',         // Melancholic
-    angry: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3',      // Intense
-    romantic: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',    // Slow/Romantic
-    tired: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3',      // Slow/Drone
-    focused: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3',     // Steady
-    nostalgic: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3',  // Retro feel
-    adventurous: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3', // Driving
+// ─────────────────────────────────────────────────────────
+// Music Library Imports
+// Explicitly importing all assets as requested
+// ─────────────────────────────────────────────────────────
+import happy1 from './assets/music/happy1.mp3';
+import happy2 from './assets/music/happy2.mp3';
+import chill1 from './assets/music/chillMusic1.mp3';
+import chill2 from './assets/music/chillMusic2.mp3';
+import motivated1 from './assets/music/motivatedMusic1.mp3';
+import motivated2 from './assets/music/motivatedMusic2.mp3';
+import sad1 from './assets/music/sadMusic1.mp3';
+import sad2 from './assets/music/sadMusic2.mp3';
+import angry1 from './assets/music/angry1.mp3';
+import angry2 from './assets/music/angry2.mp3';
+import romantic1 from './assets/music/romantic1.mp3';
+import romantic2 from './assets/music/romantic2.mp3';
+import tired1 from './assets/music/tired1.mp3';
+import tired2 from './assets/music/tired2.mp3';
+import focused1 from './assets/music/focused1.mp3';
+import focused2 from './assets/music/focused2.mp3';
+import nostalgic1 from './assets/music/nostalgic1.mp3';
+import nostalgic2 from './assets/music/nostalgic2.mp3';
+import adventurous1 from './assets/music/adventurous1.mp3';
+import adventurous2 from './assets/music/adventurous2.mp3';
+
+// Mood-to-Music Map (Explicit Arrays)
+const moodTracks: Record<string, string[]> = {
+    happy: [happy1, happy2],
+    chill: [chill1, chill2],
+    motivated: [motivated1, motivated2],
+    sad: [sad1, sad2],
+    angry: [angry1, angry2],
+    romantic: [romantic1, romantic2],
+    tired: [tired1, tired2],
+    focused: [focused1, focused2],
+    nostalgic: [nostalgic1, nostalgic2],
+    adventurous: [adventurous1, adventurous2],
 };
 
 function getRandomQuote(moodId: string): Quote | null {
@@ -61,6 +82,7 @@ export default function App() {
     // Audio State
     const [isMuted, setIsMuted] = useState(false);
     const [hasInteracted, setHasInteracted] = useState(false);
+    const [currentTrack, setCurrentTrack] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     // Track whether this is the first time a mood is selected (use preloaded)
@@ -69,14 +91,44 @@ export default function App() {
     const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // ─────────────────────────────────────────────────────────
-    // 0. Initialize Audio Ref
+    // 0. Initialize Audio Ref & Playlist Logic
     // ─────────────────────────────────────────────────────────
+
+    // Keep a ref to selectedMoodId so the event listener can access the latest value
+    // without needing to be re-bound on every change.
+    const selectedMoodIdRef = useRef<string | null>(null);
+    useEffect(() => { selectedMoodIdRef.current = selectedMoodId; }, [selectedMoodId]);
+
     useEffect(() => {
+        // Initialize Audio
         audioRef.current = new Audio();
-        audioRef.current.loop = true;
-        audioRef.current.volume = 0.5; // Start at cozy volume
+        audioRef.current.volume = 0.5;
+        audioRef.current.loop = false; // Playlist mode (handled by 'ended' listener)
+
+        const handleTrackEnd = () => {
+            const currentMoodId = selectedMoodIdRef.current;
+            if (!currentMoodId || !moodTracks[currentMoodId]) return;
+
+            const tracks = moodTracks[currentMoodId];
+            if (tracks.length === 0) return;
+
+            // When track ends, find the next one in the mood's playlist
+            setCurrentTrack(prevTrack => {
+                if (!prevTrack) return tracks[0];
+
+                // Find index of current track.
+                // Note: import.meta.glob returns /src/assets/..., so we check inclusion.
+                const idx = tracks.findIndex(t => prevTrack.includes(t) || t.includes(prevTrack));
+                const nextIdx = (idx + 1) % tracks.length;
+                return tracks[nextIdx];
+            });
+        };
+
+        audioRef.current.addEventListener('ended', handleTrackEnd);
+
         return () => {
             if (audioRef.current) {
+                audioRef.current.removeEventListener('ended', handleTrackEnd);
                 audioRef.current.pause();
                 audioRef.current = null;
             }
@@ -85,16 +137,10 @@ export default function App() {
 
     // ─────────────────────────────────────────────────────────
     // 1. PRELOAD all 10 mood images on app start
-    //    We fire off new Image() requests for every seed so the browser
-    //    cache already has them by the time the user picks a mood.
-    //    This makes the first mood click feel nearly instant.
     // ─────────────────────────────────────────────────────────
     useEffect(() => {
         moods.forEach((mood) => {
             const img = new Image();
-            // Use the base seed (no cache-buster) — this is the same URL
-            // we'll set on first mood selection, so the browser serves it
-            // straight from its HTTP cache.
             img.src = getPicsumUrl(mood.picsumSeed, 0);
         });
     }, []);
@@ -104,18 +150,15 @@ export default function App() {
 
     // ─────────────────────────────────────────────────────────
     // 2. Audio Control Logic
-    //    Updates when mood changes or mute state toggles
+    //    Updates when currentTrack changes or mute state toggles
     // ─────────────────────────────────────────────────────────
     useEffect(() => {
-        if (!selectedMoodId || !hasInteracted || !audioRef.current) return;
-
-        const trackUrl = moodMusic[selectedMoodId];
-        if (!trackUrl) return;
+        if (!currentTrack || !hasInteracted || !audioRef.current) return;
 
         const audio = audioRef.current;
 
         // If specific mood music needs to change
-        if (!audio.src.includes(trackUrl)) {
+        if (!audio.src.includes(currentTrack)) {
             // Simple fade out/in effect
             const fadeOut = setInterval(() => {
                 if (audio.volume > 0.05) {
@@ -123,7 +166,7 @@ export default function App() {
                 } else {
                     clearInterval(fadeOut);
                     audio.pause();
-                    audio.src = trackUrl;
+                    audio.src = currentTrack;
                     audio.load();
                     if (!isMuted) {
                         audio.play().catch((e) => console.log("Autoplay prevented:", e));
@@ -136,6 +179,9 @@ export default function App() {
                                 clearInterval(fadeIn);
                             }
                         }, 100);
+                    } else {
+                        // Restore volume for potential future unmute
+                        audio.volume = 0.5;
                     }
                 }
             }, 50);
@@ -145,9 +191,23 @@ export default function App() {
                 audio.pause();
             } else {
                 audio.play().catch((e) => console.log("Autoplay prevented:", e));
+                // Ensure volume is set (in case it was faded out)
+                audio.volume = 0.5;
             }
         }
-    }, [selectedMoodId, isMuted, hasInteracted]);
+    }, [currentTrack, isMuted, hasInteracted]);
+
+    // Handle mood change -> pick random track
+    useEffect(() => {
+        if (selectedMoodId && moodTracks[selectedMoodId]) {
+            const tracks = moodTracks[selectedMoodId];
+            if (tracks.length > 0) {
+                // Pick a random track from the mood's playlist
+                const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
+                setCurrentTrack(randomTrack);
+            }
+        }
+    }, [selectedMoodId]);
 
     // Handle mute toggle
     const toggleMute = () => {
@@ -302,15 +362,13 @@ export default function App() {
                         <div className="relative">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
                             </svg>
-                            {/* Subtle sound wave animation when playing */}
-                            <span className="absolute -top-1 -right-1 flex gap-0.5">
-                                <span className="w-0.5 h-2 bg-white/60 animate-pulse" style={{ animationDelay: '0s' }} />
-                                <span className="w-0.5 h-3 bg-white/60 animate-pulse" style={{ animationDelay: '0.2s' }} />
-                                <span className="w-0.5 h-2 bg-white/60 animate-pulse" style={{ animationDelay: '0.4s' }} />
-                            </span>
+                            {/* Dynamic Equalizer Effect */}
+                            <div className="absolute top-1/2 -translate-y-1/2 right-0 flex gap-0.5 items-end h-3">
+                                <span className="w-0.5 bg-white/90 rounded-full animate-equalizer" style={{ animationDelay: '0s' }} />
+                                <span className="w-0.5 bg-white/90 rounded-full animate-equalizer" style={{ animationDelay: '0.2s' }} />
+                                <span className="w-0.5 bg-white/90 rounded-full animate-equalizer" style={{ animationDelay: '0.4s' }} />
+                            </div>
                         </div>
                     )}
                     <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/60 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
