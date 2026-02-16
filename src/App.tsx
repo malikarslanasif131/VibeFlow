@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
+import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
 import { moods, Quote } from './data/moodData';
 import MoodSelector from './components/MoodSelector';
 import QuoteDisplay from './components/QuoteDisplay';
@@ -91,6 +92,10 @@ export default function App() {
     const seenMoodsRef = useRef<Set<string>>(new Set());
     const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Tour State
+    const [runTour, setRunTour] = useState(false);
+    const [tourKey, setTourKey] = useState(0);
+
     // ─────────────────────────────────────────────────────────
     // 0. Initialize Audio Ref & Playlist Logic
     // ─────────────────────────────────────────────────────────
@@ -144,6 +149,16 @@ export default function App() {
             const img = new Image();
             img.src = getPicsumUrl(mood.picsumSeed, 0);
         });
+    }, []);
+
+    // ─────────────────────────────────────────────────────────
+    // 1.5. Tour Auto-Start Check
+    // ─────────────────────────────────────────────────────────
+    useEffect(() => {
+        const hasSeenTour = localStorage.getItem('hasSeenVibeTour');
+        if (!hasSeenTour) {
+            setRunTour(true);
+        }
     }, []);
 
     const selectedMood = moods.find((m) => m.id === selectedMoodId);
@@ -292,8 +307,94 @@ export default function App() {
         };
     }, []);
 
+    // ─────────────────────────────────────────────────────────
+    // Tour Logic
+    // ─────────────────────────────────────────────────────────
+    const tourSteps: Step[] = [
+        {
+            target: '.tour-header',
+            content: 'Welcome to VibeFlow! Pick how you feel right now.',
+            placement: 'bottom',
+            disableBeacon: true,
+        },
+        {
+            target: '.tour-mood-selector',
+            content: 'Choose a mood. Each one sets a unique visual theme and plays matching music!',
+            placement: 'top',
+        },
+        {
+            target: '.tour-generate-btn',
+            content: 'Click here (or it may auto-trigger) to see your personalized quote and background.',
+            placement: 'bottom',
+        },
+        {
+            target: '.tour-quote',
+            content: 'A fitting quote appears here with elegant styling.',
+            placement: 'center',
+        },
+        {
+            target: '.tour-help-btn',
+            content: 'Click this anytime to restart the tour. Enjoy your vibe!',
+            placement: 'top',
+        }
+    ];
+
+    const handleTourCallback = (data: CallBackProps) => {
+        const { status, type } = data;
+        const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
+
+        if (finishedStatuses.includes(status) || type === 'tour:end') {
+            setRunTour(false);
+            localStorage.setItem('hasSeenVibeTour', 'true');
+        }
+    };
+
+    const restartTour = () => {
+        setTourKey(prev => prev + 1); // Force remount joyride
+        setRunTour(true);
+    };
+
     return (
         <>
+            <Joyride
+                key={tourKey}
+                steps={tourSteps}
+                run={runTour}
+                continuous
+                showSkipButton
+                showProgress
+                callback={handleTourCallback}
+                styles={{
+                    options: {
+                        primaryColor: '#8b5cf6', // violet-500
+                        textColor: '#ffffff',
+                        backgroundColor: '#1f2937', // gray-800
+                        arrowColor: '#1f2937',
+                        zIndex: 1000,
+                        overlayColor: 'rgba(0, 0, 0, 0.5)',
+                    },
+                    tooltip: {
+                        borderRadius: '16px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
+                        padding: '1.5rem',
+                    },
+                    buttonNext: {
+                        backgroundColor: '#8b5cf6',
+                        borderRadius: '8px',
+                        padding: '8px 16px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                    },
+                    buttonBack: {
+                        color: '#a78bfa',
+                        marginRight: '8px',
+                    },
+                    buttonSkip: {
+                        color: '#6b7280',
+                    },
+                }}
+            />
+
             <BackgroundLayer
                 imageUrl={backgroundUrl}
                 gradient={currentGradient}
@@ -303,7 +404,7 @@ export default function App() {
 
             <main className="relative z-10 h-screen w-full flex flex-col items-center justify-center px-3 sm:px-4 py-6 sm:py-12 gap-4 sm:gap-10 overflow-y-auto no-scrollbar">
                 {/* Header */}
-                <header className="text-center animate-fade-in">
+                <header className="text-center animate-fade-in tour-header">
                     <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
                         What&rsquo;s your{' '}
                         <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
@@ -317,7 +418,7 @@ export default function App() {
                 </header>
 
                 {/* Mood Selection Grid */}
-                <section className="w-full animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                <section className="w-full animate-fade-in tour-mood-selector" style={{ animationDelay: '0.2s' }}>
                     <MoodSelector
                         moods={moods}
                         selectedMoodId={selectedMoodId}
@@ -326,7 +427,7 @@ export default function App() {
                 </section>
 
                 {/* Generate Button */}
-                <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
+                <div className="animate-fade-in tour-generate-btn" style={{ animationDelay: '0.4s' }}>
                     <GenerateButton
                         onClick={handleGenerate}
                         disabled={!selectedMoodId || isLoading}
@@ -334,7 +435,7 @@ export default function App() {
                 </div>
 
                 {/* Quote Display */}
-                <section className="w-full min-h-[140px] sm:min-h-[180px] flex items-center justify-center">
+                <section className="w-full min-h-[140px] sm:min-h-[180px] flex items-center justify-center tour-quote">
                     <QuoteDisplay quote={currentQuote} animationKey={animationKey} />
                 </section>
 
@@ -346,37 +447,57 @@ export default function App() {
                 </footer>
             </main>
 
-            {/* Floating Mute Button */}
-            {hasInteracted && selectedMoodId && (
+            {/* Floating Buttons Container */}
+            <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-4 items-end">
+                {/* Help Button (Restart Tour) */}
                 <button
-                    onClick={toggleMute}
-                    className="fixed bottom-6 right-6 z-50 p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white/80 hover:bg-white/10 hover:text-white transition-all duration-300 shadow-lg group"
-                    aria-label={isMuted ? "Unmute music" : "Mute music"}
+                    onClick={restartTour}
+                    className="tour-help-btn p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all duration-300 shadow-lg group"
+                    aria-label="Restart Tour"
                 >
-                    {isMuted ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                            <line x1="23" x2="17" y1="9" y2="15" />
-                            <line x1="17" x2="23" y1="9" y2="15" />
-                        </svg>
-                    ) : (
-                        <div className="relative">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                            </svg>
-                            {/* Dynamic Equalizer Effect */}
-                            <div className="absolute top-1/2 -translate-y-1/2 right-0 flex gap-0.5 items-end h-3">
-                                <span className="w-0.5 bg-white/90 rounded-full animate-equalizer" style={{ animationDelay: '0s' }} />
-                                <span className="w-0.5 bg-white/90 rounded-full animate-equalizer" style={{ animationDelay: '0.2s' }} />
-                                <span className="w-0.5 bg-white/90 rounded-full animate-equalizer" style={{ animationDelay: '0.4s' }} />
-                            </div>
-                        </div>
-                    )}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                        <line x1="12" x2="12.01" y1="17" y2="17" />
+                    </svg>
                     <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/60 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                        {isMuted ? 'Unmute' : 'Mood Music Playing'}
+                        Help & Tour
                     </span>
                 </button>
-            )}
+
+                {/* Mute Button */}
+                {hasInteracted && selectedMoodId && (
+                    <button
+                        onClick={toggleMute}
+                        className="tour-mute-btn p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white/80 hover:bg-white/10 hover:text-white transition-all duration-300 shadow-lg group"
+                        aria-label={isMuted ? "Unmute music" : "Mute music"}
+                    >
+                        {isMuted ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                                <line x1="23" x2="17" y1="9" y2="15" />
+                                <line x1="17" x2="23" y1="9" y2="15" />
+                            </svg>
+                        ) : (
+                            <div className="relative">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                                </svg>
+                                {/* Dynamic Equalizer Effect */}
+                                <div className="absolute top-1/2 -translate-y-1/2 right-0 flex gap-0.5 items-end h-3">
+                                    <span className="w-0.5 bg-white/90 rounded-full animate-equalizer" style={{ animationDelay: '0s' }} />
+                                    <span className="w-0.5 bg-white/90 rounded-full animate-equalizer" style={{ animationDelay: '0.2s' }} />
+                                    <span className="w-0.5 bg-white/90 rounded-full animate-equalizer" style={{ animationDelay: '0.4s' }} />
+                                </div>
+                            </div>
+                        )}
+                        <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/60 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                            {isMuted ? 'Unmute' : 'Mood Music Playing'}
+                        </span>
+                    </button>
+                )}
+            </div>
+
             <SpeedInsights />
         </>
     );
