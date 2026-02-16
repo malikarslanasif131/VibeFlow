@@ -35,11 +35,8 @@ Here’s how VibeFlow looks in action:
 ## Live Demo
 (coming soon – or add Netlify/Vercel link once deployed)
 
-https://your-username.github.io/vibeflow/  
+https://github.com/malikarslanasif131/VibeFlow  
 (or Vercel/Netlify preview link)
-
-## Screenshots
-(Add 2–3 screenshots here later – mood selector, happy vibe, sad vibe)
 
 ## Tech Stack
 - React (Vite)  
@@ -52,7 +49,7 @@ https://your-username.github.io/vibeflow/
 
 1. Clone the repo
    ```bash
-   git clone https://github.com/yourusername/vibeflow.git
+   https://github.com/malikarslanasif131/VibeFlow.git
    cd vibeflow
    ```
 
