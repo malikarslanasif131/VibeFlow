@@ -29,6 +29,7 @@ Here’s how VibeFlow looks in action:
 - Mood-matched quotes (from public API + smart filtering)  
 - Two ambient music tracks per mood — random pick for variety  
 - Mute/unmute control  
+- Interactive product tour for new users (restartable via '?' button)
 - Dark mode aesthetic, responsive, mobile-friendly  
 - No login, no ads, fully local assets for music
 
@@ -42,6 +43,7 @@ https://github.com/malikarslanasif131/VibeFlow
 - React (Vite)  
 - Tailwind CSS  
 - TypeScript (optional)  
+- React Joyride (Onboarding tour)
 - Local MP3 assets for reliable music playback  
 - Public quote API (type.fit)
 
