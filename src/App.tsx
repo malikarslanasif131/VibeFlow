@@ -402,49 +402,58 @@ export default function App() {
                 isLoading={isLoading}
             />
 
-            <main className="relative z-10 h-screen w-full flex flex-col items-center justify-center px-3 sm:px-4 py-6 sm:py-12 gap-4 sm:gap-10 overflow-y-auto no-scrollbar">
-                {/* Header */}
-                <header className="text-center animate-fade-in tour-header">
-                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
-                        What&rsquo;s your{' '}
-                        <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
-                            vibe
-                        </span>{' '}
-                        today?
-                    </h1>
-                    <p className="mt-3 sm:mt-4 text-sm sm:text-base md:text-lg text-white/40 font-light tracking-wide max-w-md mx-auto">
-                        Pick a mood. Get inspired. Feel the aesthetic.
-                    </p>
-                </header>
+            {/* Main Scrollable Container */}
+            <main className="relative z-10 h-screen w-full overflow-y-auto no-scrollbar">
+                {/* 
+                  Inner Content Wrapper: 
+                  min-h-full ensures vertical centering when content is short, 
+                  but allows scrolling with padding when content is tall (fixing top-edge clipping).
+                */}
+                <div className="w-full min-h-full flex flex-col items-center justify-center px-4 py-12 sm:px-6 sm:py-16 gap-6 sm:gap-10">
 
-                {/* Mood Selection Grid */}
-                <section className="w-full animate-fade-in tour-mood-selector" style={{ animationDelay: '0.2s' }}>
-                    <MoodSelector
-                        moods={moods}
-                        selectedMoodId={selectedMoodId}
-                        onSelectMood={handleSelectMood}
-                    />
-                </section>
+                    {/* Header */}
+                    <header className="text-center animate-fade-in tour-header">
+                        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
+                            What&rsquo;s your{' '}
+                            <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
+                                vibe
+                            </span>{' '}
+                            today?
+                        </h1>
+                        <p className="mt-3 sm:mt-4 text-sm sm:text-base md:text-lg text-white/40 font-light tracking-wide max-w-md mx-auto">
+                            Pick a mood. Get inspired. Feel the aesthetic.
+                        </p>
+                    </header>
 
-                {/* Generate Button */}
-                <div className="animate-fade-in tour-generate-btn" style={{ animationDelay: '0.4s' }}>
-                    <GenerateButton
-                        onClick={handleGenerate}
-                        disabled={!selectedMoodId || isLoading}
-                    />
+                    {/* Mood Selection Grid */}
+                    <section className="w-full animate-fade-in tour-mood-selector" style={{ animationDelay: '0.2s' }}>
+                        <MoodSelector
+                            moods={moods}
+                            selectedMoodId={selectedMoodId}
+                            onSelectMood={handleSelectMood}
+                        />
+                    </section>
+
+                    {/* Generate Button */}
+                    <div className="animate-fade-in tour-generate-btn" style={{ animationDelay: '0.4s' }}>
+                        <GenerateButton
+                            onClick={handleGenerate}
+                            disabled={!selectedMoodId || isLoading}
+                        />
+                    </div>
+
+                    {/* Quote Display */}
+                    <section className="w-full min-h-[140px] sm:min-h-[180px] flex items-center justify-center tour-quote">
+                        <QuoteDisplay quote={currentQuote} animationKey={animationKey} />
+                    </section>
+
+                    {/* Footer */}
+                    <footer className="mt-auto pt-8">
+                        <p className="text-xs text-white/20 tracking-widest uppercase">
+                            Vibe Wallpaper + Quote &middot; {new Date().getFullYear()}
+                        </p>
+                    </footer>
                 </div>
-
-                {/* Quote Display */}
-                <section className="w-full min-h-[140px] sm:min-h-[180px] flex items-center justify-center tour-quote">
-                    <QuoteDisplay quote={currentQuote} animationKey={animationKey} />
-                </section>
-
-                {/* Footer */}
-                <footer className="mt-auto pt-8">
-                    <p className="text-xs text-white/20 tracking-widest uppercase">
-                        Vibe Wallpaper + Quote &middot; {new Date().getFullYear()}
-                    </p>
-                </footer>
             </main>
 
             {/* Floating Buttons Container */}
