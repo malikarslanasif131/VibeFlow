@@ -5,6 +5,24 @@ import QuoteDisplay from './components/QuoteDisplay';
 import GenerateButton from './components/GenerateButton';
 import BackgroundLayer from './components/BackgroundLayer';
 
+/**
+ * Mood-to-Music Map
+ * Using reliable SoundHelix public domain placeholders for the demo.
+ * The user can replace these URLs with their own direct MP3 links (Pixabay, etc).
+ */
+const moodMusic: Record<string, string> = {
+    happy: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',       // Upbeat
+    chill: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',       // Mellow
+    motivated: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3',  // Energetic
+    sad: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',         // Melancholic
+    angry: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3',      // Intense
+    romantic: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',    // Slow/Romantic
+    tired: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3',      // Slow/Drone
+    focused: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3',     // Steady
+    nostalgic: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3',  // Retro feel
+    adventurous: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3', // Driving
+};
+
 function getRandomQuote(moodId: string): Quote | null {
     const mood = moods.find((m) => m.id === moodId);
     if (!mood) return null;
@@ -40,10 +58,30 @@ export default function App() {
     const [animationKey, setAnimationKey] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
 
+    // Audio State
+    const [isMuted, setIsMuted] = useState(false);
+    const [hasInteracted, setHasInteracted] = useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
     // Track whether this is the first time a mood is selected (use preloaded)
     // vs. a re-generate (needs a unique cache-busted URL)
     const seenMoodsRef = useRef<Set<string>>(new Set());
     const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // ─────────────────────────────────────────────────────────
+    // 0. Initialize Audio Ref
+    // ─────────────────────────────────────────────────────────
+    useEffect(() => {
+        audioRef.current = new Audio();
+        audioRef.current.loop = true;
+        audioRef.current.volume = 0.5; // Start at cozy volume
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+        };
+    }, []);
 
     // ─────────────────────────────────────────────────────────
     // 1. PRELOAD all 10 mood images on app start
@@ -65,7 +103,59 @@ export default function App() {
     const currentGradient = selectedMood?.gradient ?? 'from-violet-600 via-purple-600 to-indigo-700';
 
     // ─────────────────────────────────────────────────────────
-    // 2. triggerVibe — the core generate function
+    // 2. Audio Control Logic
+    //    Updates when mood changes or mute state toggles
+    // ─────────────────────────────────────────────────────────
+    useEffect(() => {
+        if (!selectedMoodId || !hasInteracted || !audioRef.current) return;
+
+        const trackUrl = moodMusic[selectedMoodId];
+        if (!trackUrl) return;
+
+        const audio = audioRef.current;
+
+        // If specific mood music needs to change
+        if (!audio.src.includes(trackUrl)) {
+            // Simple fade out/in effect
+            const fadeOut = setInterval(() => {
+                if (audio.volume > 0.05) {
+                    audio.volume -= 0.05;
+                } else {
+                    clearInterval(fadeOut);
+                    audio.pause();
+                    audio.src = trackUrl;
+                    audio.load();
+                    if (!isMuted) {
+                        audio.play().catch((e) => console.log("Autoplay prevented:", e));
+                        // Fade in
+                        audio.volume = 0;
+                        const fadeIn = setInterval(() => {
+                            if (audio.volume < 0.45) { // Target 0.5
+                                audio.volume += 0.05;
+                            } else {
+                                clearInterval(fadeIn);
+                            }
+                        }, 100);
+                    }
+                }
+            }, 50);
+        } else {
+            // Same track, just handle mute/unmute
+            if (isMuted) {
+                audio.pause();
+            } else {
+                audio.play().catch((e) => console.log("Autoplay prevented:", e));
+            }
+        }
+    }, [selectedMoodId, isMuted, hasInteracted]);
+
+    // Handle mute toggle
+    const toggleMute = () => {
+        setIsMuted(!isMuted);
+    };
+
+    // ─────────────────────────────────────────────────────────
+    // 3. triggerVibe — the core generate function
     //    • Shows a loading spinner
     //    • Picks a random quote immediately (feels instant)
     //    • On FIRST selection of a mood → uses base seed (already preloaded)
@@ -73,6 +163,9 @@ export default function App() {
     //    • Waits 500ms minimum, then reveals the wallpaper
     // ─────────────────────────────────────────────────────────
     const triggerVibe = useCallback((moodId: string) => {
+        // Mark user interaction for audio autoplay
+        setHasInteracted(true);
+
         const mood = moods.find((m) => m.id === moodId);
         if (!mood) return;
 
@@ -191,6 +284,40 @@ export default function App() {
                     </p>
                 </footer>
             </main>
+
+            {/* Floating Mute Button */}
+            {hasInteracted && selectedMoodId && (
+                <button
+                    onClick={toggleMute}
+                    className="fixed bottom-6 right-6 z-50 p-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white/80 hover:bg-white/10 hover:text-white transition-all duration-300 shadow-lg group"
+                    aria-label={isMuted ? "Unmute music" : "Mute music"}
+                >
+                    {isMuted ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                            <line x1="23" x2="17" y1="9" y2="15" />
+                            <line x1="17" x2="23" y1="9" y2="15" />
+                        </svg>
+                    ) : (
+                        <div className="relative">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                            </svg>
+                            {/* Subtle sound wave animation when playing */}
+                            <span className="absolute -top-1 -right-1 flex gap-0.5">
+                                <span className="w-0.5 h-2 bg-white/60 animate-pulse" style={{ animationDelay: '0s' }} />
+                                <span className="w-0.5 h-3 bg-white/60 animate-pulse" style={{ animationDelay: '0.2s' }} />
+                                <span className="w-0.5 h-2 bg-white/60 animate-pulse" style={{ animationDelay: '0.4s' }} />
+                            </span>
+                        </div>
+                    )}
+                    <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-black/60 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                        {isMuted ? 'Unmute' : 'Mood Music Playing'}
+                    </span>
+                </button>
+            )}
         </>
     );
 }
