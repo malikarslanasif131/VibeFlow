@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { moods, Quote } from './data/moodData';
 import MoodSelector from './components/MoodSelector';
 import QuoteDisplay from './components/QuoteDisplay';
@@ -376,6 +377,7 @@ export default function App() {
                     </span>
                 </button>
             )}
+            <SpeedInsights />
         </>
     );
 }
